@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Search Page</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      #response {
+        margin-top: 20px;
+      }
+      ul {
+        list-style-type: none;
+        padding: 0;
+      }
+      li {
+        margin: 5px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <form id="searchForm" onsubmit="event.preventDefault(); searchBook();">
+      <input
+        type="text"
+        name="search"
+        placeholder="Search ISBN or Book Title"
+        required
+      />
+      <button type="submit">Search</button>
+    </form>
+    <div id="response"></div>
+
+    <script>
+      async function getBookByISBN(isbn) {
+        try {
+          const response = await fetch(
+            `http://localhost:5500/data/search/isbn/code/${isbn}`
+          );
+          if (!response.ok) {
+            const errorMsg = await response.text();
+            console.error("Error fetching data:", errorMsg);
+            return errorMsg;
+          }
+          return await response.json();
+        } catch (error) {
+          console.error("Error fetching data:", error);
+          return "An error occurred while fetching data.";
+        }
+      }
+
+      async function getBookByTitle(title) {
+        try {
+          const response = await fetch(
+            `http://localhost:5500/data/search/title/${title}`
+          );
+          if (!response.ok) {
+            const errorMsg = await response.text();
+            console.error("Error fetching data:", errorMsg);
+            return errorMsg;
+          }
+          return await response.json();
+        } catch (error) {
+          console.error("Error fetching data:", error);
+          return "An error occurred while fetching data.";
+        }
+      }
+
+      async function searchBook() {
+        let searchValue = document.querySelector('input[name="search"]').value;
+
+        const [bookByISBN, bookByTitle] = await Promise.all([
+          getBookByISBN(searchValue),
+          getBookByTitle(searchValue),
+        ]);
+
+        if (typeof bookByISBN === "string" && typeof bookByTitle === "string") {
+          updateResponse("No result found.");
+        } else if (typeof bookByISBN !== "string") {
+          updateResponse(bookByISBN);
+        } else {
+          updateResponse(bookByTitle);
+        }
+      }
+
+      function updateResponse(data) {
+        if (typeof data === "string") {
+          document.getElementById(
+            "response"
+          ).innerHTML = `<strong>${data}</strong>`;
+        } else {
+          let responseHTML = "<ul>";
+          const books = Array.isArray(data) ? data : [data];
+          for (const book of books) {
+            const authorsList = book.authors
+              ? book.authors.join(", ")
+              : "Unknown authors";
+            const image = book.thumbnailUrl
+              ? `<img src="${book.thumbnailUrl}" alt="${book.title}" />`
+              : "";
+            const shortDescription = book.shortDescription
+              ? `<p><strong>Short Description:</strong> ${book.shortDescription}</p>`
+              : "";
+            const longDescription = book.longDescription
+              ? `<p><strong>Long Description:</strong> ${book.longDescription}</p>`
+              : "";
+            const publishDate = book.publishedDate
+              ? new Date(book.publishedDate.$date).toLocaleDateString()
+              : "Unknown publish date";
+
+            responseHTML += `
+            <li>
+                ${image}<br />
+                <strong>Book Name:</strong> ${book.title}<br />
+                <strong>ISBN:</strong> ${book.isbn}<br />
+                <strong>Authors:</strong> ${authorsList}<br />
+                <strong>Pages Count:</strong> ${book.pageCount}<br />
+                <strong>Publish Date:</strong> ${publishDate}<br />
+                ${shortDescription}
+                ${longDescription}
+                </li>
+                `;
+          }
+          responseHTML += "</ul>";
+          document.getElementById("response").innerHTML = responseHTML;
+        }
+      }
+    </script>
+  </body>
+</html>
